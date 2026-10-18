@@ -177,7 +177,8 @@ internal open class BrowseService2 {
 
         return RetrofitHelper.get(firstResult, auth) ?.let { firstItem ->
             val result = continueShortsWeb(firstItem.getContinuationToken(), auth)
-            result?.mediaItems?.add(0, ShortsMediaItem(null, firstItem))
+            if (!firstItem.isAdUpload()) // METUBE(no ads)
+                result?.mediaItems?.add(0, ShortsMediaItem(null, firstItem))
 
             if (auth)
                 getSubscribedShortsWeb()?.let { result?.mediaItems?.addAll(0, it) }
@@ -280,7 +281,7 @@ internal open class BrowseService2 {
                     val details = mBrowseApi?.getReelResult(BrowseApiHelper.getReelDetailsQuery(AppClient.WEB, it.videoId, it.params))
 
                     RetrofitHelper.get(details, auth)?.let {
-                            info -> result.add(ShortsMediaItem(it, info))
+                            info -> if (!info.isAdUpload()) result.add(ShortsMediaItem(it, info)) // METUBE(no ads)
                     }
                 }
             }
