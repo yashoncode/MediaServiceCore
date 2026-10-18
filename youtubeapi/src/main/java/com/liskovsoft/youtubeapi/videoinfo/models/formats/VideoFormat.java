@@ -51,6 +51,8 @@ public class VideoFormat {
     private String mXtags;
     @JsonPath("$.audioTrack.id")
     private String mAudioTrackId;
+    @JsonPath("$.audioTrack.isAutoDubbed")
+    private boolean mIsAutoDubbed;
     @JsonPath("$.width")
     private int mWidth = -1;
     @JsonPath("$.height")
@@ -152,6 +154,8 @@ public class VideoFormat {
     }
 
     public String getAudioTrackId() { return mAudioTrackId; }
+
+    public boolean isAutoDubbed() { return mIsAutoDubbed; }
 
     public void setXtags(String xtags) {
         mXtags = xtags;
