@@ -1,5 +1,6 @@
 package com.liskovsoft.youtubeapi.innertube.impl
 
+import com.liskovsoft.googlecommon.common.helpers.YouTubeHelper
 import com.liskovsoft.mediaserviceinterfaces.data.MediaFormat
 import com.liskovsoft.mediaserviceinterfaces.data.MediaFormat.FORMAT_TYPE_DASH
 import com.liskovsoft.mediaserviceinterfaces.data.MediaFormat.FORMAT_TYPE_SABR
@@ -26,6 +27,10 @@ internal data class MediaFormatImpl(private val streamingFormat: StreamingFormat
     private val _clen by lazy { streamingFormat.contentLength }
     private val _bitrate by lazy { streamingFormat.bitrate?.takeIf { it != 0 }?.toString() ?: "" }
     private val _projectionType by lazy { streamingFormat.projectionType }
+    private val _xtags by lazy { streamingFormat.xtags }
+    private val _audioTrackId by lazy { streamingFormat.audioTrack?.id }
+    private val _isDefaultAudio by lazy { streamingFormat.audioTrack?.audioIsDefault ?: false }
+    private val _isAutoDubbed by lazy { streamingFormat.audioTrack?.isAutoDubbed ?: false }
     private val _width by lazy { streamingFormat.width ?: -1 }
     private val _height by lazy { streamingFormat.height ?: -1 }
     private val _initRange by lazy { streamingFormat.getInitRange() }
@@ -58,7 +63,9 @@ internal data class MediaFormatImpl(private val streamingFormat: StreamingFormat
 
     override fun getProjectionType() = _projectionType
 
-    override fun getXtags(): String? = null
+    override fun getXtags() = _xtags
+
+    override fun getAudioTrackId() = _audioTrackId
 
     override fun getWidth() = _width
 
@@ -82,7 +89,7 @@ internal data class MediaFormatImpl(private val streamingFormat: StreamingFormat
 
     override fun getOtfTemplateUrl() = urlHolder.getOtfTemplateUrl()
 
-    override fun getLanguage() = urlHolder.getLanguage()
+    override fun getLanguage() = urlHolder.getLanguage() ?: YouTubeHelper.getSabrLanguage(_audioTrackId, _isAutoDubbed, _isDefaultAudio)
 
     override fun getTargetDurationSec() = _targetDurationSec
 

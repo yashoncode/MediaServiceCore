@@ -2,6 +2,7 @@ package com.liskovsoft.youtubeapi.videoinfo.models;
 
 import androidx.annotation.Nullable;
 
+import com.liskovsoft.googlecommon.common.helpers.YouTubeHelper;
 import com.liskovsoft.sharedutils.helpers.Helpers;
 import com.liskovsoft.sharedutils.querystringparser.UrlQueryString;
 import com.liskovsoft.sharedutils.querystringparser.UrlQueryStringFactory;
@@ -582,7 +583,7 @@ public class VideoInfo {
         if (mMergedCaptionTracks == null) {
             mMergedCaptionTracks = mCaptionTracks;
 
-            if (mTranslationLanguages != null && !mTranslationLanguages.isEmpty() && mCaptionTracks != null && !mCaptionTracks.isEmpty()) {
+            if (!Helpers.isNullOrEmpty(mTranslationLanguages) && !Helpers.isNullOrEmpty(mCaptionTracks)) {
                 CaptionTrack originTrack = findOriginTrack(mCaptionTracks);
                 for (TranslationLanguage language : mTranslationLanguages) {
                     mMergedCaptionTracks.add(new TranslatedCaptionTrack(originTrack, language));
@@ -609,7 +610,7 @@ public class VideoInfo {
                     result = track;
                 }
 
-                if (!track.isDubTranscript() && !containsIgnoreCase(dubbedLanguages, track.getLanguageCode())) {
+                if (!track.isDubTranscript() && !Helpers.containsIgnoreCase(dubbedLanguages, track.getLanguageCode())) {
                     result = track;
                     break;
                 }
@@ -630,25 +631,11 @@ public class VideoInfo {
             String audioTrackId = format.getAudioTrackId();
 
             if (format.isAutoDubbed() && audioTrackId != null) {
-                result.add(audioTrackId.split("\\.")[0]); // de-DE.10 -> de-DE
+                result.add(YouTubeHelper.extractLang(audioTrackId));
             }
         }
 
         return result;
-    }
-
-    private static boolean containsIgnoreCase(List<String> list, String value) {
-        if (value == null) {
-            return false;
-        }
-
-        for (String item : list) {
-            if (value.equalsIgnoreCase(item)) {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     private boolean isAdaptiveFullHD() {

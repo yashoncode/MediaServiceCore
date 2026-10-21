@@ -2,6 +2,7 @@ package com.liskovsoft.youtubeapi.videoinfo.models.formats;
 
 import androidx.annotation.NonNull;
 
+import com.liskovsoft.googlecommon.common.helpers.YouTubeHelper;
 import com.liskovsoft.sharedutils.helpers.Helpers;
 import com.liskovsoft.googlecommon.common.converters.jsonpath.JsonPath;
 import com.liskovsoft.youtubeapi.formatbuilders.utils.ITagUtils;
@@ -51,6 +52,8 @@ public class VideoFormat {
     private String mXtags;
     @JsonPath("$.audioTrack.id")
     private String mAudioTrackId;
+    @JsonPath("$.audioTrack.audioIsDefault")
+    private boolean mIsDefaultAudio;
     @JsonPath("$.audioTrack.isAutoDubbed")
     private boolean mIsAutoDubbed;
     @JsonPath("$.width")
@@ -155,10 +158,12 @@ public class VideoFormat {
 
     public String getAudioTrackId() { return mAudioTrackId; }
 
-    public boolean isAutoDubbed() { return mIsAutoDubbed; }
-
     public void setXtags(String xtags) {
         mXtags = xtags;
+    }
+
+    public boolean isAutoDubbed() {
+        return mIsAutoDubbed;
     }
 
     public int getWidth() {
@@ -273,7 +278,13 @@ public class VideoFormat {
     }
 
     public String getLanguage() {
-        return mLanguage != null ? mLanguage : getUrlHolder().getLanguage();
+        if (mLanguage != null) {
+            return mLanguage;
+        }
+
+        String urlHolderLang = getUrlHolder().getLanguage();
+
+        return urlHolderLang != null ? urlHolderLang : YouTubeHelper.getSabrLanguage(mAudioTrackId, mIsAutoDubbed, mIsDefaultAudio);
     }
 
     public String getApproxDurationMs() {
