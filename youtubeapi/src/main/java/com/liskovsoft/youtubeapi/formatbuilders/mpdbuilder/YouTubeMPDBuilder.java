@@ -5,6 +5,7 @@ import com.liskovsoft.mediaserviceinterfaces.data.MediaFormat;
 import com.liskovsoft.mediaserviceinterfaces.data.MediaItemFormatInfo;
 import com.liskovsoft.mediaserviceinterfaces.data.MediaSubtitle;
 import com.liskovsoft.sharedutils.helpers.FileHelpers;
+import com.liskovsoft.sharedutils.helpers.Helpers;
 import com.liskovsoft.sharedutils.mylogger.Log;
 import com.liskovsoft.youtubeapi.formatbuilders.mpdbuilder.YouTubeOtfSegmentParser.OtfSegment;
 import com.liskovsoft.youtubeapi.formatbuilders.utils.ITagUtils;
@@ -36,6 +37,8 @@ public class YouTubeMPDBuilder implements MPDBuilder {
     private int mId;
     private final Set<MediaFormat> mMP4Videos;
     private final Set<MediaFormat> mWEBMVideos;
+    private final Set<MediaFormat> mMP4HdrVideos;
+    private final Set<MediaFormat> mWEBMHdrVideos;
     private final Map<String, Set<MediaFormat>> mMP4Audios;
     private final Map<String, Set<MediaFormat>> mWEBMAudios;
     private final List<MediaSubtitle> mSubs;
@@ -53,12 +56,25 @@ public class YouTubeMPDBuilder implements MPDBuilder {
         MediaFormatComparator comp = new MediaFormatComparator();
         mMP4Videos = new TreeSet<>(comp);
         mWEBMVideos = new TreeSet<>(comp);
+        mMP4HdrVideos = new TreeSet<>(comp);
+        mWEBMHdrVideos = new TreeSet<>(comp);
         mMP4Audios = new HashMap<>();
         mWEBMAudios = new HashMap<>();
         mSubs = new ArrayList<>();
         mSegmentParser = new YouTubeOtfSegmentParser(true);
 
         initXmlSerializer(serializer);
+    }
+
+    /**
+     * METUBE(issue #35): HDR video formats in the manifest. Off: they are left out, so no quality
+     * pick or Auto ladder can land on one. On: each HDR codec gets its own AdaptationSet, so Auto
+     * never adapts between HDR and SDR mid-video. Read on every build: applies from the next open.
+     */
+    private static volatile boolean sHdrEnabled;
+
+    public static void setHdrEnabled(boolean enabled) {
+        sHdrEnabled = enabled;
     }
 
     public static MPDBuilder from(MediaItemFormatInfo formatInfo) {
@@ -180,6 +196,8 @@ public class YouTubeMPDBuilder implements MPDBuilder {
         // MXPlayer fix: write high quality formats first
         writeMediaTagsForGroup(mMP4Videos);
         writeMediaTagsForGroup(mWEBMVideos);
+        writeMediaTagsForGroup(mMP4HdrVideos);
+        writeMediaTagsForGroup(mWEBMHdrVideos);
 
         for (Set<MediaFormat> formats : mMP4Audios.values()) {
             writeMediaTagsForGroup(formats);
@@ -407,13 +425,17 @@ public class YouTubeMPDBuilder implements MPDBuilder {
 
         Set<MediaFormat> placeholder = null;
         String mimeType = MediaFormatUtils.extractMimeType(mediaItem);
+        boolean hdr = isHdr(mediaItem);
+        if (hdr && !sHdrEnabled) {
+            return;
+        }
         if (mimeType != null) {
             switch (mimeType) {
                 case MediaFormatUtils.MIME_MP4_VIDEO:
-                    placeholder = mMP4Videos;
+                    placeholder = hdr ? mMP4HdrVideos : mMP4Videos;
                     break;
                 case MediaFormatUtils.MIME_WEBM_VIDEO:
-                    placeholder = mWEBMVideos;
+                    placeholder = hdr ? mWEBMHdrVideos : mWEBMVideos;
                     break;
                 case MediaFormatUtils.MIME_MP4_AUDIO:
                     placeholder = getMP4Audios(mediaItem.getLanguage());
@@ -443,7 +465,7 @@ public class YouTubeMPDBuilder implements MPDBuilder {
         startTag("", "Representation");
 
         attribute("", "id", format.isDrc() ? format.getITag() + "-drc" : format.getITag());
-        attribute("", "codecs", MediaFormatUtils.extractCodecs(format));
+        attribute("", "codecs", codecs(format));
         attribute("", "startWithSAP", "1");
         attribute("", "bandwidth", format.getBitrate());
 
@@ -626,6 +648,29 @@ public class YouTubeMPDBuilder implements MPDBuilder {
         endTag("", "BaseURL");
 
         endTag("", "Representation");
+    }
+
+    /** METUBE(issue #35): YouTube's HDR itags (VP9.2 330-337, AV1 694-701), or an "HDR" quality label. */
+    static boolean isHdr(MediaFormat item) {
+        int itag = Helpers.parseInt(item.getITag());
+        return (itag >= 330 && itag <= 337) || (itag >= 694 && itag <= 701)
+                || (item.getQualityLabel() != null && item.getQualityLabel().contains("HDR"));
+    }
+
+    /**
+     * METUBE(issue #35): YouTube labels HDR VP9 "vp9.2", which is no codec string a player can
+     * parse, so it can't check the decoder for 10-bit profile 2. Written as the full string the
+     * web client gets (vp09.02.LL.10.01.09.16.09.00: 10-bit, BT.2020, PQ), level by height.
+     */
+    static String codecs(MediaFormat format) {
+        String codecs = MediaFormatUtils.extractCodecs(format);
+        if (!"vp9.2".equals(codecs)) {
+            return codecs;
+        }
+        int height = Math.min(format.getWidth(), format.getHeight());
+        String level = height <= 144 ? "10" : height <= 240 ? "20" : height <= 360 ? "21" : height <= 480 ? "30"
+                : height <= 720 ? "31" : height <= 1080 ? "40" : height <= 1440 ? "50" : "51";
+        return "vp09.02." + level + ".10.01.09.16.09.00";
     }
 
     private boolean isVideo(MediaFormat item) {
