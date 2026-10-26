@@ -13,6 +13,8 @@ import com.liskovsoft.youtubeapi.actions.ActionsServiceWrapper;
 import com.liskovsoft.youtubeapi.browse.v2.BrowseService2;
 import com.liskovsoft.youtubeapi.browse.v2.BrowseService2Wrapper;
 import com.liskovsoft.youtubeapi.common.models.impl.mediagroup.SearchContinuationMediaGroup;
+import com.liskovsoft.youtubeapi.common.models.impl.mediagroup.ShortsMediaGroup;
+import com.liskovsoft.youtubeapi.common.models.impl.mediagroup.MediaGroupOptions;
 import com.liskovsoft.youtubeapi.common.models.impl.mediagroup.SearchSectionMediaGroup;
 import com.liskovsoft.youtubeapi.common.models.impl.mediagroup.SuggestionsGroup;
 import com.liskovsoft.youtubeapi.next.v2.WatchNextService;
@@ -35,7 +37,11 @@ import io.reactivex.rxjava3.core.ObservableEmitter;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -307,8 +313,85 @@ class YouTubeContentService implements ContentService {
         return RxHelper.create(emitter -> {
             checkSigned();
 
-            emitGroups(emitter, getBrowseService2().getHome());
+            kotlin.Pair<List<MediaGroup>, String> home = getBrowseService2().getHome();
+            startHomeShortsWalk(home);
+            emitGroups(emitter, home);
         });
+    }
+
+    // METUBE(issue #42): the Shorts rows of the account's TV Home are picked for the account; the reel
+    // feed never is (it is anonymous: the WEB reel endpoint answers a TV sign-in with 400). They sit a
+    // few pages down, so one walk per launch fetches those pages in the background, after Home's first
+    // page has settled, and hands each page to Home's own paced walk: no page is fetched twice and the
+    // Shorts tab finds the rows ready, with no wait of its own.
+    private static final long HOME_SHORTS_DELAY_MS = 3_000;
+    private static final int HOME_SHORTS_MAX_PAGES = 8; // the rows came on pages 3-4 one launch, 5-6 the next
+    private static final int HOME_SHORTS_ROWS = 2;
+    private static final AtomicBoolean sHomeShortsStarted = new AtomicBoolean();
+    /** The rows' shorts by video id, in Home's order. */
+    private static final Map<String, MediaItem> sHomeShorts = new LinkedHashMap<>();
+    /** Home pages the walk fetched, by the key Home's walk will ask with. */
+    private static final Map<String, kotlin.Pair<List<MediaGroup>, String>> sHomePages = new ConcurrentHashMap<>();
+
+    // ponytail: once per process; a long session keeps its launch's rows (ShortsSeen skips the played ones).
+    private void startHomeShortsWalk(kotlin.Pair<List<MediaGroup>, String> firstPage) {
+        if (firstPage == null || !sHomeShortsStarted.compareAndSet(false, true)) {
+            return;
+        }
+        Thread walk = new Thread(() -> {
+            try {
+                Thread.sleep(HOME_SHORTS_DELAY_MS);
+                int rows = addHomeShorts(firstPage.getFirst());
+                String next = firstPage.getSecond();
+                for (int page = 2; page <= HOME_SHORTS_MAX_PAGES && next != null && rows < HOME_SHORTS_ROWS; page++) {
+                    kotlin.Pair<List<MediaGroup>, String> more = getBrowseService2().continueSectionList(next, MediaGroup.TYPE_HOME);
+                    if (more == null) {
+                        break;
+                    }
+                    sHomePages.put(next, more);
+                    rows += addHomeShorts(more.getFirst());
+                    next = more.getSecond();
+                }
+                android.util.Log.d("NetPath", "home-shorts rows=" + rows + " shorts=" + homeShorts().size());
+            } catch (Throwable e) {
+                Log.e(TAG, "home shorts walk: %s", e.getMessage());
+            }
+        }, "metube-home-shorts");
+        walk.setPriority(Thread.MIN_PRIORITY);
+        walk.start();
+    }
+
+    /** Takes the shorts rows of a Home page; returns how many rows it had. */
+    private static int addHomeShorts(@Nullable List<MediaGroup> groups) {
+        int rows = 0;
+        if (groups == null) {
+            return 0;
+        }
+        for (MediaGroup group : groups) {
+            List<MediaItem> items = group != null ? group.getMediaItems() : null;
+            if (items == null || items.isEmpty()) {
+                continue;
+            }
+            boolean shortsRow = true;
+            for (MediaItem item : items) {
+                shortsRow &= item != null && item.isShorts() && item.getVideoId() != null;
+            }
+            if (shortsRow) {
+                rows++;
+                synchronized (sHomeShorts) {
+                    for (MediaItem item : items) {
+                        sHomeShorts.put(item.getVideoId(), item);
+                    }
+                }
+            }
+        }
+        return rows;
+    }
+
+    private static List<MediaItem> homeShorts() {
+        synchronized (sHomeShorts) {
+            return new ArrayList<>(sHomeShorts.values());
+        }
     }
 
     @Override
@@ -326,6 +409,12 @@ class YouTubeContentService implements ContentService {
             checkSigned();
 
             //emitGroup(emitter, getBrowseService2().getShorts());
+
+            // METUBE(issue #42): the account's own picks first, from memory (startHomeShortsWalk).
+            List<MediaItem> picked = homeShorts();
+            if (!picked.isEmpty()) {
+                emitGroupPartial(emitter, new ShortsMediaGroup(picked, null, MediaGroupOptions.Companion.create(MediaGroup.TYPE_SHORTS, null)));
+            }
 
             MediaGroup shorts = getBrowseService2().getShorts();
 
@@ -509,7 +598,8 @@ class YouTubeContentService implements ContentService {
                 return;
             }
 
-            groupsAndKey = getBrowseService2().continueSectionList(nextKey, groups.get(0).getType());
+            kotlin.Pair<List<MediaGroup>, String> walked = nextKey != null ? sHomePages.remove(nextKey) : null; // METUBE(issue #42)
+            groupsAndKey = walked != null ? walked : getBrowseService2().continueSectionList(nextKey, groups.get(0).getType());
             groups = groupsAndKey != null ? groupsAndKey.getFirst() : null;
             nextKey = groupsAndKey != null ? groupsAndKey.getSecond() : null;
             page++;
