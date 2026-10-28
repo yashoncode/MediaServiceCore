@@ -324,12 +324,26 @@ class YouTubeContentService implements ContentService {
     // few pages down, so one walk per launch fetches those pages in the background, after Home's first
     // page has settled, and hands each page to Home's own paced walk: no page is fetched twice and the
     // Shorts tab finds the rows ready, with no wait of its own.
+    // The Shorts feed pages on through the same source: each row's own continuation, then the rows of
+    // later Home pages. It used to stop after the rows' first ~16 and go on with the subscriptions'.
     private static final long HOME_SHORTS_DELAY_MS = 3_000;
     private static final int HOME_SHORTS_MAX_PAGES = 8; // the rows came on pages 3-4 one launch, 5-6 the next
-    private static final int HOME_SHORTS_ROWS = 2;
+    private static final int HOME_SHORTS_PAGE = 16; // one Shorts feed page
+    private static final String HOME_SHORTS_KEY = "metube-home-shorts:"; // + how many the feed has shown
     private static final AtomicBoolean sHomeShortsStarted = new AtomicBoolean();
-    /** The rows' shorts by video id, in Home's order. */
+    /** One fetch at a time: the walk and the Shorts feed share the rows and the page chain. */
+    private static final Object sHomeShortsLock = new Object();
+    /** The rows' shorts by video id, in the order they came. */
     private static final Map<String, MediaItem> sHomeShorts = new LinkedHashMap<>();
+    /** Shorts rows with more behind them, asked in turn. */
+    private static final java.util.ArrayDeque<MediaGroup> sShortsRows = new java.util.ArrayDeque<>();
+    private static String sHomeNextKey;
+    private static int sHomePagesWalked;
+    // ponytail: a fixed number of Home fetches per launch, then the reel; a round that finds nothing new ends it early.
+    private static final int HOME_SHORTS_ROUNDS = 6;
+    private static int sHomeRounds;
+    /** New shorts the current Home fetch (round) has given. */
+    private static int sHomeRoundAdded;
     /** Home pages the walk fetched, by the key Home's walk will ask with. */
     private static final Map<String, kotlin.Pair<List<MediaGroup>, String>> sHomePages = new ConcurrentHashMap<>();
 
@@ -338,21 +352,19 @@ class YouTubeContentService implements ContentService {
         if (firstPage == null || !sHomeShortsStarted.compareAndSet(false, true)) {
             return;
         }
+        synchronized (sHomeShortsLock) {
+            addHomeShorts(firstPage.getFirst());
+            sHomeNextKey = firstPage.getSecond();
+            sHomePagesWalked = 1;
+            sHomeRounds = 1;
+            android.util.Log.d("NetPath", "home-shorts page=1 added=" + sHomeShorts.size() + " rows=" + sShortsRows.size());
+        }
         Thread walk = new Thread(() -> {
             try {
                 Thread.sleep(HOME_SHORTS_DELAY_MS);
-                int rows = addHomeShorts(firstPage.getFirst());
-                String next = firstPage.getSecond();
-                for (int page = 2; page <= HOME_SHORTS_MAX_PAGES && next != null && rows < HOME_SHORTS_ROWS; page++) {
-                    kotlin.Pair<List<MediaGroup>, String> more = getBrowseService2().continueSectionList(next, MediaGroup.TYPE_HOME);
-                    if (more == null) {
-                        break;
-                    }
-                    sHomePages.put(next, more);
-                    rows += addHomeShorts(more.getFirst());
-                    next = more.getSecond();
-                }
-                android.util.Log.d("NetPath", "home-shorts rows=" + rows + " shorts=" + homeShorts().size());
+                // The tab's first two pages, ready before it opens.
+                int shorts = homeShorts(0, HOME_SHORTS_PAGE * 2).size();
+                android.util.Log.d("NetPath", "home-shorts pages=" + sHomePagesWalked + " shorts=" + shorts);
             } catch (Throwable e) {
                 Log.e(TAG, "home shorts walk: %s", e.getMessage());
             }
@@ -361,11 +373,10 @@ class YouTubeContentService implements ContentService {
         walk.start();
     }
 
-    /** Takes the shorts rows of a Home page; returns how many rows it had. */
-    private static int addHomeShorts(@Nullable List<MediaGroup> groups) {
-        int rows = 0;
+    /** Takes the shorts rows of a Home page. Under sHomeShortsLock. */
+    private static void addHomeShorts(@Nullable List<MediaGroup> groups) {
         if (groups == null) {
-            return 0;
+            return;
         }
         for (MediaGroup group : groups) {
             List<MediaItem> items = group != null ? group.getMediaItems() : null;
@@ -377,21 +388,93 @@ class YouTubeContentService implements ContentService {
                 shortsRow &= item != null && item.isShorts() && item.getVideoId() != null;
             }
             if (shortsRow) {
-                rows++;
-                synchronized (sHomeShorts) {
-                    for (MediaItem item : items) {
-                        sHomeShorts.put(item.getVideoId(), item);
-                    }
+                addShorts(items);
+                if (group.getNextPageKey() != null) {
+                    sShortsRows.add(group);
                 }
             }
         }
-        return rows;
     }
 
-    private static List<MediaItem> homeShorts() {
-        synchronized (sHomeShorts) {
-            return new ArrayList<>(sHomeShorts.values());
+    /** @return how many of {@code items} were new. Under sHomeShortsLock. */
+    private static int addShorts(@Nullable List<MediaItem> items) {
+        int added = 0;
+        if (items != null) {
+            for (MediaItem item : items) {
+                if (item != null && item.isShorts() && item.getVideoId() != null && !sHomeShorts.containsKey(item.getVideoId())) {
+                    sHomeShorts.put(item.getVideoId(), item);
+                    added++;
+                }
+            }
         }
+        sHomeRoundAdded += added;
+        return added;
+    }
+
+    /** One request for more of the account's shorts; false when none is left. Under sHomeShortsLock. */
+    private static boolean pullHomeShorts() {
+        MediaGroup row = sShortsRows.poll();
+        if (row != null) {
+            MediaGroup more = getBrowseService2().continueGroup(row);
+            int added = more != null ? addShorts(more.getMediaItems()) : 0;
+            android.util.Log.d("NetPath", "home-shorts row in=" + (more != null && more.getMediaItems() != null ? more.getMediaItems().size() : -1)
+                    + " added=" + added + " next=" + (more != null && more.getNextPageKey() != null));
+            // A row that only repeats itself is done.
+            if (added > 0 && more.getNextPageKey() != null) {
+                sShortsRows.add(more); // after the other rows: they take turns
+            }
+            return true;
+        }
+        String key = sHomeNextKey;
+        int before = sHomeShorts.size();
+        kotlin.Pair<List<MediaGroup>, String> page;
+        if (key != null && sHomePagesWalked < HOME_SHORTS_MAX_PAGES) {
+            page = getBrowseService2().continueSectionList(key, MediaGroup.TYPE_HOME);
+            sHomePagesWalked++;
+            if (page != null && sHomeRounds == 1) {
+                sHomePages.put(key, page); // only the launch's chain is the one Home walks
+            }
+        } else if (sHomeRounds < HOME_SHORTS_ROUNDS && sHomeRoundAdded > 0) {
+            // This Home is spent; signed in, every fetch of Home is a fresh mix with new Shorts rows.
+            page = getBrowseService2().getHome();
+            sHomeRounds++;
+            sHomeRoundAdded = 0;
+            sHomePagesWalked = 1;
+        } else {
+            return false;
+        }
+        sHomeNextKey = page != null ? page.getSecond() : null;
+        if (page != null) {
+            addHomeShorts(page.getFirst());
+        }
+        android.util.Log.d("NetPath", "home-shorts round=" + sHomeRounds + " page=" + sHomePagesWalked + " added=" + (sHomeShorts.size() - before)
+                + " rows=" + sShortsRows.size() + " next=" + (sHomeNextKey != null));
+        return true;
+    }
+
+    /** The account's shorts from {@code from} on, fetching (one request at a time) until there are {@code count}. */
+    private static List<MediaItem> homeShorts(int from, int count) {
+        while (true) {
+            synchronized (sHomeShortsLock) {
+                if (sHomeShorts.size() >= from + count || !pullHomeShorts()) {
+                    List<MediaItem> all = new ArrayList<>(sHomeShorts.values());
+                    return new ArrayList<>(all.subList(Math.min(from, all.size()), Math.min(from + count, all.size())));
+                }
+            }
+        }
+    }
+
+    private static MediaGroup homeShortsPage(List<MediaItem> items, int from) {
+        return new ShortsMediaGroup(items, HOME_SHORTS_KEY + (from + items.size()),
+                MediaGroupOptions.Companion.create(MediaGroup.TYPE_SHORTS, null));
+    }
+
+    /** The feed's next page of the account's shorts; the reel sequence once they run out. */
+    private static MediaGroup continueHomeShorts(String key) {
+        int from = Integer.parseInt(key.substring(HOME_SHORTS_KEY.length()));
+        List<MediaItem> more = homeShorts(from, HOME_SHORTS_PAGE);
+        // ponytail: the anonymous reel once the account's run out; it is endless, nothing else here is.
+        return !more.isEmpty() ? homeShortsPage(more, from) : getBrowseService2().getShorts2();
     }
 
     @Override
@@ -410,10 +493,12 @@ class YouTubeContentService implements ContentService {
 
             //emitGroup(emitter, getBrowseService2().getShorts());
 
-            // METUBE(issue #42): the account's own picks first, from memory (startHomeShortsWalk).
-            List<MediaItem> picked = homeShorts();
+            // METUBE(issue #42): the account's own picks (startHomeShortsWalk), the next ones a page at a
+            // time (continueHomeShorts). The subscriptions' and the reel only when Home has no Shorts rows.
+            List<MediaItem> picked = homeShorts(0, HOME_SHORTS_PAGE);
             if (!picked.isEmpty()) {
-                emitGroupPartial(emitter, new ShortsMediaGroup(picked, null, MediaGroupOptions.Companion.create(MediaGroup.TYPE_SHORTS, null)));
+                emitGroup(emitter, homeShortsPage(picked, 0));
+                return;
             }
 
             MediaGroup shorts = getBrowseService2().getShorts();
@@ -857,6 +942,11 @@ class YouTubeContentService implements ContentService {
         checkSigned();
 
         Log.d(TAG, "Continue group " + mediaGroup.getTitle() + "...");
+
+        String key = mediaGroup.getNextPageKey();
+        if (key != null && key.startsWith(HOME_SHORTS_KEY)) {
+            return continueHomeShorts(key);
+        }
 
         if (mediaGroup instanceof SuggestionsGroup) {
             return getWatchNextService().continueGroup(mediaGroup);
