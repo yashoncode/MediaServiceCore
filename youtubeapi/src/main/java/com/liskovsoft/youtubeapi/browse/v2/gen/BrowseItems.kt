@@ -203,7 +203,7 @@ internal data class ReelWatchEndpoint(
     val playerParams: String?,
     val params: String?,
     val thumbnail: ThumbnailItem?,
-    val adClientParams: AdClientParams? // METUBE(no ads): {"isAd": true} on ad entries in the Shorts sequence
+    val adClientParams: AdClientParams? // MEETUBE(no ads): {"isAd": true} on ad entries in the Shorts sequence
 ) {
     data class AdClientParams(val isAd: Boolean?)
 }

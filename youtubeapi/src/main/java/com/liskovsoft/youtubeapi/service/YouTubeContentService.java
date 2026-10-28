@@ -319,7 +319,7 @@ class YouTubeContentService implements ContentService {
         });
     }
 
-    // METUBE(issue #42): the Shorts rows of the account's TV Home are picked for the account; the reel
+    // MEETUBE(issue #42): the Shorts rows of the account's TV Home are picked for the account; the reel
     // feed never is (it is anonymous: the WEB reel endpoint answers a TV sign-in with 400). They sit a
     // few pages down, so one walk per launch fetches those pages in the background, after Home's first
     // page has settled, and hands each page to Home's own paced walk: no page is fetched twice and the
@@ -329,7 +329,7 @@ class YouTubeContentService implements ContentService {
     private static final long HOME_SHORTS_DELAY_MS = 3_000;
     private static final int HOME_SHORTS_MAX_PAGES = 8; // the rows came on pages 3-4 one launch, 5-6 the next
     private static final int HOME_SHORTS_PAGE = 16; // one Shorts feed page
-    private static final String HOME_SHORTS_KEY = "metube-home-shorts:"; // + how many the feed has shown
+    private static final String HOME_SHORTS_KEY = "meetube-home-shorts:"; // + how many the feed has shown
     private static final AtomicBoolean sHomeShortsStarted = new AtomicBoolean();
     /** One fetch at a time: the walk and the Shorts feed share the rows and the page chain. */
     private static final Object sHomeShortsLock = new Object();
@@ -368,7 +368,7 @@ class YouTubeContentService implements ContentService {
             } catch (Throwable e) {
                 Log.e(TAG, "home shorts walk: %s", e.getMessage());
             }
-        }, "metube-home-shorts");
+        }, "meetube-home-shorts");
         walk.setPriority(Thread.MIN_PRIORITY);
         walk.start();
     }
@@ -493,7 +493,7 @@ class YouTubeContentService implements ContentService {
 
             //emitGroup(emitter, getBrowseService2().getShorts());
 
-            // METUBE(issue #42): the account's own picks (startHomeShortsWalk), the next ones a page at a
+            // MEETUBE(issue #42): the account's own picks (startHomeShortsWalk), the next ones a page at a
             // time (continueHomeShorts). The subscriptions' and the reel only when Home has no Shorts rows.
             List<MediaItem> picked = homeShorts(0, HOME_SHORTS_PAGE);
             if (!picked.isEmpty()) {
@@ -683,7 +683,7 @@ class YouTubeContentService implements ContentService {
                 return;
             }
 
-            kotlin.Pair<List<MediaGroup>, String> walked = nextKey != null ? sHomePages.remove(nextKey) : null; // METUBE(issue #42)
+            kotlin.Pair<List<MediaGroup>, String> walked = nextKey != null ? sHomePages.remove(nextKey) : null; // MEETUBE(issue #42)
             groupsAndKey = walked != null ? walked : getBrowseService2().continueSectionList(nextKey, groups.get(0).getType());
             groups = groupsAndKey != null ? groupsAndKey.getFirst() : null;
             nextKey = groupsAndKey != null ? groupsAndKey.getSecond() : null;

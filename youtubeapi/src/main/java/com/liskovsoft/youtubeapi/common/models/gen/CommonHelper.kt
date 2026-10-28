@@ -206,7 +206,7 @@ internal fun TileItem.getThumbnails() = header?.tileHeaderRenderer?.thumbnail ?:
 internal fun TileItem.getMovingThumbnails() = header?.tileHeaderRenderer?.let { it.movingThumbnail ?: it.onFocusThumbnail }
 internal fun TileItem.getMovingThumbnailUrl() = header?.tileHeaderRenderer?.movingThumbnail?.thumbnails?.getOrNull(0)?.url
 internal fun TileItem.getChannelId() = onSelectCommand?.getBrowseId() ?: getMenu()?.getBrowseId()
-    ?: getVideoId()?.let { getAuthorChannelId() } // METUBE(card avatars): a video tile names its channel only in its byline
+    ?: getVideoId()?.let { getAuthorChannelId() } // MEETUBE(card avatars): a video tile names its channel only in its byline
 private fun TileItem.getAuthorChannelId() = metadata?.tileMetadataRenderer?.lines?.firstNotNullOfOrNull { line ->
     line?.lineRenderer?.items?.firstNotNullOfOrNull { item ->
         item?.lineItemRenderer?.text?.runs?.firstNotNullOfOrNull { run -> run?.navigationEndpoint?.getBrowseId()?.takeIf { it.startsWith("UC") } }

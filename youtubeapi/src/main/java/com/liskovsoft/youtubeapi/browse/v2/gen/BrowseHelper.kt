@@ -237,7 +237,7 @@ internal fun ReelResult.getSubtitle(): CharSequence? = getPlayerHeader()?.reelTi
     YouTubeHelper.createInfo(getVideoInfo()?.getChannelName(), getVideoInfo()?.getViews(), getVideoInfo()?.getPublishDate())
 private fun ReelResult.getVideoInfo(): EngagementPanel? = engagementPanels?.firstNotNullOfOrNull { if (it?.getTitle() != null) it else null }
 private fun ReelResult.getChannelName(): String? = getPlayerHeader()?.channelTitleText?.getText()
-/** METUBE(no ads): a video ad uploaded as a short - YouTube posts them from "Video ad upload channel for ..." channels. */
+/** MEETUBE(no ads): a video ad uploaded as a short - YouTube posts them from "Video ad upload channel for ..." channels. */
 internal fun ReelResult.isAdUpload(): Boolean = (getChannelName() ?: getSubtitle()?.toString())?.startsWith("Video ad upload channel") == true
 private fun ReelResult.getUploadDate(): String? = getPlayerHeader()?.timestampText?.getText()
 internal fun ReelResult.getThumbnails(): ThumbnailItem? = getWatchEndpoint()?.thumbnail
@@ -245,7 +245,7 @@ internal fun ReelResult.getBrowseId(): String? = getPlayerHeader()?.channelNavig
 internal fun ReelResult.getFeedbackTokens(): List<String?>? = overlay?.reelPlayerOverlayRenderer?.menu?.getFeedbackTokens()
 internal fun ReelResult.getContinuationToken(): String? = sequenceContinuation ?: continuationEndpoint?.continuationCommand?.token
 
-internal fun ReelContinuationResult.getItems(): List<ReelWatchEndpoint?>? = entries?.mapNotNull { it?.command?.reelWatchEndpoint?.takeIf { it.adClientParams?.isAd != true } } // METUBE(no ads)
+internal fun ReelContinuationResult.getItems(): List<ReelWatchEndpoint?>? = entries?.mapNotNull { it?.command?.reelWatchEndpoint?.takeIf { it.adClientParams?.isAd != true } } // MEETUBE(no ads)
 internal fun ReelContinuationResult.getContinuationToken(): String? = continuation ?: continuationEndpoint?.continuationCommand?.token
 
 internal fun ReelWatchEndpoint.getVideoId(): String? = videoId

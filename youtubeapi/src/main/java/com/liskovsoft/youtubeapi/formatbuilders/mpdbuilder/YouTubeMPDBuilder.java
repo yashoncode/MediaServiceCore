@@ -67,7 +67,7 @@ public class YouTubeMPDBuilder implements MPDBuilder {
     }
 
     /**
-     * METUBE(issue #35): HDR video formats in the manifest. Off: they are left out, so no quality
+     * MEETUBE(issue #35): HDR video formats in the manifest. Off: they are left out, so no quality
      * pick or Auto ladder can land on one. On: each HDR codec gets its own AdaptationSet, so Auto
      * never adapts between HDR and SDR mid-video. Read on every build: applies from the next open.
      */
@@ -650,7 +650,7 @@ public class YouTubeMPDBuilder implements MPDBuilder {
         endTag("", "Representation");
     }
 
-    /** METUBE(issue #35): YouTube's HDR itags (VP9.2 330-337, AV1 694-701), or an "HDR" quality label. */
+    /** MEETUBE(issue #35): YouTube's HDR itags (VP9.2 330-337, AV1 694-701), or an "HDR" quality label. */
     static boolean isHdr(MediaFormat item) {
         int itag = Helpers.parseInt(item.getITag());
         return (itag >= 330 && itag <= 337) || (itag >= 694 && itag <= 701)
@@ -658,7 +658,7 @@ public class YouTubeMPDBuilder implements MPDBuilder {
     }
 
     /**
-     * METUBE(issue #35): YouTube labels HDR VP9 "vp9.2", which is no codec string a player can
+     * MEETUBE(issue #35): YouTube labels HDR VP9 "vp9.2", which is no codec string a player can
      * parse, so it can't check the decoder for 10-bit profile 2. Written as the full string the
      * web client gets (vp09.02.LL.10.01.09.16.09.00: 10-bit, BT.2020, PQ), level by height.
      */
