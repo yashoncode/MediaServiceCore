@@ -25,6 +25,14 @@ public interface MediaItemMetadata {
         return null;
     }
 
+    /**
+     * MEETUBE(exact counts): the likes as a whole number (19490953 where {@link #getLikeCount()}
+     * says "19M"), or -1 when YouTube sent only the short form.
+     */
+    default long getLikeCountNumber() {
+        return -1;
+    }
+
     String getVideoId();
     MediaItem getNextVideo();
     MediaItem getShuffleVideo();

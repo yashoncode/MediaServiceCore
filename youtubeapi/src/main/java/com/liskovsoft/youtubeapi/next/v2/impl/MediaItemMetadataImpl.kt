@@ -249,6 +249,11 @@ internal data class MediaItemMetadataImpl(private val watchNextResult: WatchNext
         return viewCountText
     }
 
+    override fun getLikeCountNumber(): Long {
+        // the TV client's /next has it on the transport controls' like button only
+        return (videoMetadata?.getLikeCountInt() ?: buttonStateItem?.getLikeCountInt())?.toLong() ?: -1
+    }
+
     override fun getPublishedDate(): String? {
         return publishedTime
     }

@@ -125,6 +125,7 @@ internal fun ButtonStateItem.isSubscribeToggled() = subscribeButton?.toggleButto
 internal fun ButtonStateItem.getChannelId() = getChannelOwner()?.getChannelId()
 internal fun ButtonStateItem.getChannelOwner() = channelButton?.videoOwnerRenderer ?: getButton(TYPE_CHANNEL)?.videoOwnerRenderer
 internal fun ButtonStateItem.getLikeStatus() = getButton(TYPE_LIKE)?.likeButtonRenderer?.likeStatus
+internal fun ButtonStateItem.getLikeCountInt() = getButton(TYPE_LIKE)?.likeButtonRenderer?.likeCount
 private fun ButtonStateItem.getButton(type: String) = buttons?.firstOrNull { it?.type == type }?.button
 
 ///////
