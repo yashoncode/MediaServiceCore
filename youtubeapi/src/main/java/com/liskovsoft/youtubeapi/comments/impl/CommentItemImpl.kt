@@ -5,6 +5,8 @@ import com.liskovsoft.sharedutils.helpers.Helpers
 import com.liskovsoft.youtubeapi.comments.gen.CommentItemWrapper
 import com.liskovsoft.youtubeapi.comments.gen.getContinuationKey
 import com.liskovsoft.youtubeapi.comments.gen.getContinuationLabel
+import com.liskovsoft.youtubeapi.comments.gen.getImageAspectRatio
+import com.liskovsoft.youtubeapi.comments.gen.getImageUrl
 import com.liskovsoft.youtubeapi.comments.gen.getPinnedLabel
 import com.liskovsoft.youtubeapi.common.models.gen.TextItem
 import com.liskovsoft.youtubeapi.common.models.gen.getOptimalResThumbnailUrl
@@ -37,6 +39,8 @@ internal data class CommentItemImpl(val commentItemWrapper: CommentItemWrapper):
 
     private val messageSpansItem by lazy { commentRenderer?.contentText?.let { toSpans(it) } }
 
+    private val imageUrlItem by lazy { commentRenderer?.getImageUrl() }
+
     override fun getId(): String? = idItem
 
     override fun getMessage(): String? = messageIem
@@ -60,6 +64,10 @@ internal data class CommentItemImpl(val commentItemWrapper: CommentItemWrapper):
     override fun getPinnedLabel(): String? = pinnedLabelItem
 
     override fun getMessageSpans(): List<CommentItem.Span>? = messageSpansItem
+
+    override fun getImageUrl(): String? = imageUrlItem
+
+    override fun getImageAspectRatio(): Float = commentRenderer?.getImageAspectRatio() ?: 0f
 
     /**
      * NEWTUBE(comments-panel): the bold and linked runs of the text, with offsets into the joined

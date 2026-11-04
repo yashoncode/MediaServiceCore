@@ -3,6 +3,7 @@ package com.liskovsoft.youtubeapi.comments.gen
 import com.liskovsoft.youtubeapi.common.models.gen.getAccessibilityLabel
 import com.liskovsoft.youtubeapi.common.models.gen.getContinuations
 import com.liskovsoft.youtubeapi.common.models.gen.getDefaultParams
+import com.liskovsoft.youtubeapi.common.models.gen.getHighResThumbnailUrl
 import com.liskovsoft.youtubeapi.common.models.gen.getText
 import com.liskovsoft.youtubeapi.common.models.gen.getToggleParams
 import com.liskovsoft.youtubeapi.next.v2.gen.getContinuationToken
@@ -19,5 +20,7 @@ internal fun CommentRenderer.getContinuationLabel() = repliesCount?.getAccessibi
 internal fun CommentRenderer.getLikeParams() = actionButtons?.commentActionButtonsRenderer?.likeButton?.toggleButtonRenderer?.getDefaultParams()
 internal fun CommentRenderer.getUnLikeParams() = actionButtons?.commentActionButtonsRenderer?.likeButton?.toggleButtonRenderer?.getToggleParams()
 internal fun CommentRenderer.getPinnedLabel() = pinnedCommentBadge?.pinnedCommentBadgeRenderer?.label?.getText()
+internal fun CommentRenderer.getImageUrl() = imageAttachmentViewModel?.commentImageAttachmentViewModel?.image?.getHighResThumbnailUrl()
+internal fun CommentRenderer.getImageAspectRatio() = imageAttachmentViewModel?.commentImageAttachmentViewModel?.aspectRatio ?: 0f
 internal fun CommentRenderer.getDislikeParams() = actionButtons?.commentActionButtonsRenderer?.dislikeButton?.toggleButtonRenderer?.getDefaultParams()
 internal fun CommentRenderer.getUnDislikeParams() = actionButtons?.commentActionButtonsRenderer?.dislikeButton?.toggleButtonRenderer?.getToggleParams()

@@ -29,8 +29,17 @@ internal data class CommentRenderer(
     val voteCount: TextItem?,
     val repliesCount: TextItem?,
     val actionButtons: ActionButtonsWrapper?,
-    val pinnedCommentBadge: PinnedCommentBadge? // NEWTUBE(comments-panel)
+    val pinnedCommentBadge: PinnedCommentBadge?, // NEWTUBE(comments-panel)
+    val imageAttachmentViewModel: ImageAttachmentViewModel? // MEETUBE(issue #190): a GIF posted in the comment
 ) {
+    data class ImageAttachmentViewModel(
+        val commentImageAttachmentViewModel: CommentImageAttachmentViewModel?
+    ) {
+        data class CommentImageAttachmentViewModel(
+            val image: ThumbnailItem?, // sources[]: an animated webp, signed (bare URLs 404)
+            val aspectRatio: Float?
+        )
+    }
     data class PinnedCommentBadge(
         val pinnedCommentBadgeRenderer: PinnedCommentBadgeRenderer?
     ) {

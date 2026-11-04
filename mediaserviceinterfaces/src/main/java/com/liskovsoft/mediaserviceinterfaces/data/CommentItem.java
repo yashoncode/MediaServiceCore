@@ -39,6 +39,17 @@ public interface CommentItem {
         return null;
     }
 
+    /** MEETUBE(issue #190): the GIF posted in the comment (an animated webp), or null. */
+    @Nullable
+    default String getImageUrl() {
+        return null;
+    }
+
+    /** Width / height of {@link #getImageUrl()}, 0 when unknown. */
+    default float getImageAspectRatio() {
+        return 0f;
+    }
+
     /**
      * A stretch of a comment's text that YouTube marked up: bold, a link to a web address, or a
      * link to a video - a timestamp when {@link #startTimeSeconds} is set, which for the video the
