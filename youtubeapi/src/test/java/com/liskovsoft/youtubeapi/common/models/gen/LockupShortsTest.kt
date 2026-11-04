@@ -41,6 +41,17 @@ class LockupShortsTest {
         assertTrue(WrapperMediaItem(item).isShorts())
     }
 
+    private fun tile(command: String) = Gson().fromJson("""
+        {"tileRenderer": {"style": "TILE_STYLE_YTLR_DEFAULT", "onSelectCommand": $command}}
+    """.trimIndent(), ItemWrapper::class.java)
+
+    @Test
+    fun tileOpeningTheReelPlayerIsAShort() {
+        // MEETUBE(shorts): History sends its Shorts as plain tiles; only the tap says what they are.
+        assertTrue(tile("""{"reelWatchEndpoint": {"videoId": "d99vrWc2m7E"}}""").isShorts())
+        assertFalse(tile("""{"watchEndpoint": {"videoId": "Aar9urB9BIw"}}""").isShorts())
+    }
+
     @Test
     fun lockupOpeningTheWatchPageIsNot() {
         val item = lockup("Aar9urB9BIw", "LOCKUP_CONTENT_TYPE_VIDEO",
