@@ -80,6 +80,10 @@ public interface MediaItem {
      */
     double getRatingScore();
     boolean isMovie();
+    /** MEETUBE(music pill): a music video, its time pill shows a note. */
+    default boolean isMusic() {
+        return false;
+    }
     boolean hasUploads();
     String getClickTrackingParams();
     String getSearchQuery();

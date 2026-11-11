@@ -346,6 +346,10 @@ internal fun ItemWrapper.getChannelParams() = getTileItem()?.getChannelParams()
 internal fun ItemWrapper.getPlaylistIndex() = getVideoItem()?.getPlaylistIndex() ?: getMusicItem()?.getPlaylistIndex() ?: getTileItem()?.getPlaylistIndex()
 internal fun ItemWrapper.isLive() = getVideoItem()?.isLive() ?: getMusicItem()?.isLive() ?: getTileItem()?.isLive() ?: getLockupItem()?.isLive() ?: false
 internal fun ItemWrapper.isUpcoming() = getVideoItem()?.isUpcoming() ?: getMusicItem()?.isUpcoming() ?: getTileItem()?.isUpcoming() ?: false
+// MEETUBE(music pill): YouTube marks a music video's time pill with an AUDIO icon
+internal fun TileItem.isMusic() = header?.tileHeaderRenderer?.thumbnailOverlays
+    ?.any { it?.thumbnailOverlayTimeStatusRenderer?.icon?.iconType == "AUDIO" } ?: false
+internal fun ItemWrapper.isMusic() = getTileItem()?.isMusic() ?: false
 internal fun ItemWrapper.isMovie() = getVideoItem()?.isMovie() ?: getTileItem()?.isMovie() ?: false
 // NEWTUBE(shorts): a lockupViewModel Short (search results, the Home/channel Shorts shelves on TVHTML5)
 // carries no Shorts badge or style - only its contentType and its tap command (a reelWatchEndpoint) say it.

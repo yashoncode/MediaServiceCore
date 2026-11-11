@@ -39,6 +39,7 @@ internal class WrapperMediaItem(private val itemWrapper: ItemWrapper): BaseMedia
     override val isUpcomingItem by lazy { itemWrapper.isUpcoming() }
     override val isShortsItem by lazy { itemWrapper.isShorts() }
     override val isMovieItem by lazy { itemWrapper.isMovie() }
+    override val isMusicItem by lazy { itemWrapper.isMusic() }
     override val feedbackTokenItem by lazy { itemWrapper.getFeedbackToken() }
     override val feedbackTokenItem2 by lazy { itemWrapper.getFeedbackToken2() }
     override val feedbackEndpointItem by lazy { itemWrapper.getFeedbackEndpoint()?.let {

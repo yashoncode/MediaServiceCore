@@ -16,6 +16,9 @@ public class Header {
     private List<Integer> mPercentWatched;
     @JsonPath("$.thumbnailOverlays[*].thumbnailOverlayTimeStatusRenderer.style")
     private List<String> mBadgeStyle;
+    // MEETUBE(music pill): "AUDIO" marks a music video's time pill
+    @JsonPath("$.thumbnailOverlays[*].thumbnailOverlayTimeStatusRenderer.icon.iconType")
+    private List<String> mBadgeIcon;
     @JsonPath({
             "$.onFocusThumbnail.thumbnails[0].url", // v2
             "$.movingThumbnail.thumbnails[0].url" // v1
@@ -38,6 +41,10 @@ public class Header {
 
     public String getBadgeStyle() {
         return mBadgeStyle != null ? mBadgeStyle.get(0) : null;
+    }
+
+    public String getBadgeIcon() {
+        return mBadgeIcon != null ? mBadgeIcon.get(0) : null;
     }
 
     /**

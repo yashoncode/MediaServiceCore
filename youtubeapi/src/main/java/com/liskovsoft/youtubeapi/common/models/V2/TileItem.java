@@ -157,6 +157,10 @@ public class TileItem {
         return Helpers.equalsAny(BADGE_STYLE_UPCOMING, getBadgeStyles());
     }
 
+    public boolean isMusic() {
+        return mHeader != null && "AUDIO".equals(mHeader.getBadgeIcon());
+    }
+
     public boolean isMovie() {
         return Helpers.equalsAny(BADGE_STYLE_MOVIE, getBadgeStyles());
     }
