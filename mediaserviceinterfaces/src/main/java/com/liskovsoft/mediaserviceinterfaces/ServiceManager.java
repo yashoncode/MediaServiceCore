@@ -9,6 +9,7 @@ public interface ServiceManager {
     ContentService getContentService();
     MediaItemService getMediaItemService();
     LiveChatService getLiveChatService();
+    CommunityService getCommunityService();
     CommentsService getCommentsService();
     NotificationsService getNotificationsService();
     ChannelGroupService getChannelGroupService();

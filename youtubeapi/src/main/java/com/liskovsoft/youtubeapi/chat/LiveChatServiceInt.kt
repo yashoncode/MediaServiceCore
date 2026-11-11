@@ -118,7 +118,9 @@ internal object LiveChatServiceInt {
     }
 
     private fun openLiveChatInt(chatKey: String, onChatItem: OnChatItem, stopSignal: StopSignal, backoff: LiveChatBackoff): Int {
-        var continuationKey: String? = chatKey
+        // Every message, not Top chat's pick (later continuations keep the chosen view).
+        val allKey = LiveChatApiParams.allMessages(chatKey)
+        var continuationKey: String? = allKey
         var timeoutMs: Int?
         var goodPolls = 0
 
@@ -127,7 +129,15 @@ internal object LiveChatServiceInt {
                 break
             }
 
-            val chatResult = getLiveChatResult(continuationKey)
+            val chatResult = if (goodPolls == 0 && continuationKey == allKey && allKey != chatKey) {
+                // A stream that refuses the Live chat view (400, or no continuation) used to be
+                // retried forever: fall back to the Top chat key YouTube gave us.
+                val all = runCatching { getLiveChatResult(allKey) }.getOrNull()
+                if (all?.getContinuation()?.continuation.isNullOrEmpty()) {
+                    logNetPath("chat-all-rejected fallback=top")
+                    getLiveChatResult(chatKey)
+                } else all
+            } else getLiveChatResult(continuationKey)
             val continuation = chatResult?.getContinuation()
             continuationKey = continuation?.continuation
             timeoutMs = continuation?.timeoutMs
@@ -140,7 +150,8 @@ internal object LiveChatServiceInt {
             }
 
             val actions = chatResult?.getActions()
-            actions?.forEach { it?.let { onChatItem.onChatItem(ChatItemImpl(it)) } }
+            // Only text messages: deletes, placeholders and the like have no renderer and came out as blank rows.
+            actions?.forEach { it?.let { ChatItemImpl(it).takeIf { item -> item.id != null }?.let(onChatItem::onChatItem) } }
 
             if (timeoutMs != null && !sleepUnlessStopped(timeoutMs.toLong(), stopSignal)) {
                 break

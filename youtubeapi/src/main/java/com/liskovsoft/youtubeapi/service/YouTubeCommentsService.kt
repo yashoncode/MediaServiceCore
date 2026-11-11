@@ -10,6 +10,8 @@ import io.reactivex.rxjava3.core.Observable
 
 internal object YouTubeCommentsService: CommentsService {
     private fun getComments(key: String?): CommentGroup? {
+        // Channel post comments come from the WEB client (written as the web sign-in).
+        if (key?.startsWith("post:") == true) return YouTubeCommunityService.getPostComments(key)
         return key?.let { CommentsServiceInt.getComments(key) }
     }
 
@@ -34,6 +36,9 @@ internal object YouTubeCommentsService: CommentsService {
     }
 
     override fun createCommentObserve(videoId: String?, commentText: String?): Observable<CommentItem> {
+        if (videoId?.startsWith("post:") == true) {
+            return RxHelper.fromCallable { YouTubeCommunityService.createPostComment(videoId, requireNotNull(commentText)) }
+        }
         return RxHelper.fromCallable {
             checkSignedIn()
             CommentsServiceInt.createComment(requireNotNull(videoId), requireNotNull(commentText))
@@ -41,6 +46,11 @@ internal object YouTubeCommentsService: CommentsService {
     }
 
     override fun createReplyObserve(videoId: String?, parentCommentId: String?, commentText: String?): Observable<CommentItem> {
+        if (videoId?.startsWith("post:") == true) {
+            return RxHelper.fromCallable {
+                YouTubeCommunityService.createPostReply(requireNotNull(parentCommentId), requireNotNull(commentText))
+            }
+        }
         return RxHelper.fromCallable {
             checkSignedIn()
             CommentsServiceInt.createReply(requireNotNull(videoId), requireNotNull(parentCommentId), requireNotNull(commentText))

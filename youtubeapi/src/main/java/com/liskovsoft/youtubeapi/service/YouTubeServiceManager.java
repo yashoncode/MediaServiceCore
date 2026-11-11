@@ -61,6 +61,11 @@ public class YouTubeServiceManager implements ServiceManager {
     }
 
     @Override
+    public com.liskovsoft.mediaserviceinterfaces.CommunityService getCommunityService() {
+        return YouTubeCommunityService.INSTANCE;
+    }
+
+    @Override
     public CommentsService getCommentsService() {
         return getYouTubeCommentsService();
     }

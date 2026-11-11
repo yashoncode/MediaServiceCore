@@ -187,7 +187,10 @@ internal object RetrofitOkHttpHelper {
             val url = request.url.toString()
 
             if (apiPrefixes.any { url.startsWith(it) }) {
-                val doSkipAuth = authSkipList.remove(request)
+                // Request identity can change in earlier interceptors. A cookie credential
+                // (WebSession) owns its call; every other request keeps its old behaviour.
+                val listedSkip = authSkipList.remove(request)
+                val doSkipAuth = listedSkip || headers["Authorization"]?.startsWith("SAPISIDHASH") == true
                 val isPlayer = isPlayerEndpoint(request)
 
                 // Empty Home fix (anonymous user) and improve Recommendations for everyone
@@ -257,6 +260,8 @@ internal object RetrofitOkHttpHelper {
     ): okhttp3.Response {
         if (response.code != 401) return response
         val rejected = request.header("Authorization") ?: return response
+        // A web session must never refresh or replay with a TV OAuth bearer.
+        if (!rejected.startsWith("Bearer ", ignoreCase = true)) return response
 
         val refreshed = try {
             com.liskovsoft.youtubeapi.service.YouTubeSignInService.instance().refreshRejectedAuthHeader(rejected)

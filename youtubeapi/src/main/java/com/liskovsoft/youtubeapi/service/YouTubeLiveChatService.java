@@ -2,8 +2,10 @@ package com.liskovsoft.youtubeapi.service;
 
 import com.liskovsoft.mediaserviceinterfaces.LiveChatService;
 import com.liskovsoft.mediaserviceinterfaces.data.ChatItem;
+import com.liskovsoft.mediaserviceinterfaces.data.LiveChatMessageResult;
 import com.liskovsoft.sharedutils.rx.RxHelper;
 import com.liskovsoft.youtubeapi.chat.LiveChatServiceInt;
+import com.liskovsoft.youtubeapi.chat.LiveChatMessageSender;
 import io.reactivex.rxjava3.core.Observable;
 
 class YouTubeLiveChatService implements LiveChatService {
@@ -20,6 +22,15 @@ class YouTubeLiveChatService implements LiveChatService {
         }
 
         return sInstance;
+    }
+
+    @Override
+    public Observable<LiveChatMessageResult> sendLiveChatMessageObserve(
+            String videoId, String channelId, String text) {
+        return RxHelper.create(emitter -> {
+            emitter.onNext(LiveChatMessageSender.send(videoId, channelId, text));
+            emitter.onComplete();
+        });
     }
 
     @Override
