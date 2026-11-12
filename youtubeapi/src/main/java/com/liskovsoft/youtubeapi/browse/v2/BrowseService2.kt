@@ -64,8 +64,27 @@ internal open class BrowseService2 {
         return getBrowseRowsTV(BrowseApiHelper::getHomeQuery, MediaGroup.TYPE_HOME)
     }
 
+    /**
+     * MEETUBE(hyped): FEtrending is gone; the Trending section now shows YouTube's Charts, the hype
+     * leaderboard (FEhype_leaderboard): one shelf per category (Top 100, Gaming, Sports, Music...),
+     * served signed out too. The first section is a promo carousel without a title, skipped.
+     */
     fun getTrending(): List<MediaGroup?>? {
-        return getBrowseRowsWeb(BrowseApiHelper.getTrendingQuery(AppClient.WEB), MediaGroup.TYPE_TRENDING)
+        val options = MediaGroupOptions.create(MediaGroup.TYPE_TRENDING)
+        // Signed out: a TV account token on the WEB client gets a 400. The chart is the same for all.
+        val shelves = RetrofitHelper.get(mBrowseApi.getBrowseResult(BrowseApiHelper.getHypeQuery(AppClient.WEB)), false)
+            ?.getNestedShelves()?.filterNotNull()?.filter { it.getTitle() != null } ?: return null
+        // The first shelf (Top 100) shows 16; its "View all" playlist is the whole chart, 100 in one
+        // page. The categories keep their 16 (nine more pages of ~1 MB each for little).
+        return shelves.mapIndexed { i, shelf ->
+            val whole = if (i == 0) shelf.getViewAllId()?.let { id ->
+                RetrofitHelper.get(mBrowseApi.getBrowseResult(BrowseApiHelper.getChannelQuery(AppClient.WEB, id)), false)
+                    ?.getNestedShelves()?.firstOrNull()
+                    ?.let { ItemSectionMediaGroup(it, options).apply { title = shelf.getTitle() } }
+                    ?.takeIf { !it.isEmpty }
+            } else null
+            whole ?: ItemSectionMediaGroup(shelf, options)
+        }
     }
 
     fun getSports(): Pair<List<MediaGroup?>?, String?>? {

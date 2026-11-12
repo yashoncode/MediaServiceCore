@@ -22,8 +22,17 @@ internal data class ShelfRenderer(
     val content: Content?,
     val headerRenderer: HeaderRenderer?,
     val endpoint: NavigationEndpointItem?,
-    val tvhtml5ShelfRendererType: String?
+    val tvhtml5ShelfRendererType: String?,
+    val menu: Menu? = null // MEETUBE(hyped): the chart shelves' "View all" button
 ) {
+    data class Menu(val menuRenderer: MenuRenderer?) {
+        data class MenuRenderer(val topLevelButtons: List<Button?>?) {
+            data class Button(val buttonRenderer: ButtonRenderer?) {
+                data class ButtonRenderer(val navigationEndpoint: NavigationEndpointItem?)
+            }
+        }
+    }
+
     data class Content(
         val gridRenderer: GridRenderer?,
         val expandedShelfContentsRenderer: ExpandedShelfContentsRenderer?,

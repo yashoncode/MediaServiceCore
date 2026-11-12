@@ -225,7 +225,8 @@ internal data class Shelf(
     val playlistVideoListRenderer: PlaylistVideoListRenderer?,
     val gridRenderer: GridRenderer?,
     val videoRenderer: VideoItem?,
-    val playlistRenderer: PlaylistItem?
+    val playlistRenderer: PlaylistItem?,
+    val lockupViewModel: LockupItem? // MEETUBE(hyped): a WEB playlist page's videos, bare in the section
 )
 
 internal data class PlaylistVideoListRenderer(

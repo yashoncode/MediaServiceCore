@@ -119,6 +119,9 @@ internal fun ShelfListWrapper.getItems(): List<ItemWrapper?>? = getContents()?.g
 internal fun ShelfListWrapper.getShortItems(): List<ItemWrapper?>? =
     getContents()?.firstNotNullOfOrNull { if (it?.containsShorts() == true) it.getItems() else null }
 internal fun ShelfListWrapper.getContinuationToken() = getContents()?.lastOrNull()?.getContinuationToken() ?: continuations?.getContinuationToken()
+/** MEETUBE(hyped): where a shelf's "View all" button goes (a chart's whole playlist). */
+internal fun ShelfListWrapper.getViewAllId() = getFirstShelfRenderer()?.menu?.menuRenderer?.topLevelButtons
+    ?.firstNotNullOfOrNull { it?.buttonRenderer?.navigationEndpoint?.getBrowseId() }
 internal fun ShelfListWrapper.getBrowseId() = getFirstShelfRenderer()?.endpoint?.getBrowseId()
 internal fun ShelfListWrapper.getParams() = getFirstShelfRenderer()?.endpoint?.getParams()
 private fun ShelfListWrapper.getContents() = contents // Contains shelves with items (usually 3 in a row) and single row for shorts
@@ -341,7 +344,8 @@ private const val TV_SHELVE_ROW_SIZE = 3 // the modern grid layout is actually r
 // e.g. "contents" : [ { "gridRenderer": {...} }, { "shelfRenderer": {...}, { "shelfRenderer": {...} }
 internal fun List<Shelf?>.getItems(): List<ItemWrapper?> {
     val hasParts = any { it?.getItems()?.size == TV_SHELVE_ROW_SIZE }
-    return flatMap { it?.getItems()?.takeIf { !hasParts || it.size == TV_SHELVE_ROW_SIZE } ?: emptyList() }
+    return flatMap { it?.getItems()?.takeIf { !hasParts || it.size == TV_SHELVE_ROW_SIZE }
+        ?: it?.lockupViewModel?.let { lockup -> listOf(ItemWrapper(lockupViewModel = lockup)) } ?: emptyList() }
 }
 
 //////////
