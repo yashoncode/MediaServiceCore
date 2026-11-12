@@ -65,7 +65,8 @@ internal object TvPoTokenProvider {
     }
 
     private fun getPoTokenSync(): PoTokenResult? {
-        result?.let { if (generator != null && !isPotExpired()) return it }
+        // The session token outlives its generator, so the WebView is not kept alive for it
+        result?.let { if (!isPotExpired()) return it }
 
         val tvConfig = AppService.instance().tvConfig
         val requestKey = tvConfig?.challengeRequestKey
@@ -98,7 +99,8 @@ internal object TvPoTokenProvider {
 
         // Log.d(TAG, "TV poToken: livingRoomId=$livingRoomId, pot=$sessionPot, visitor_data=$visitorData")
 
-        generator = newGenerator
+        // One token per session: free the WebView (Chromium) now instead of holding it for hours
+        runOnMainThreadSync(3) { newGenerator.close() }
         expirationMs = newGenerator.expirationMs
         livingRoomPoTokenId = livingRoomId
         // Same session token is used both for the player request and the streaming
