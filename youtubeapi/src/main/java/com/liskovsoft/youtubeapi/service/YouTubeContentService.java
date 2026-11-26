@@ -473,8 +473,26 @@ class YouTubeContentService implements ContentService {
     private static MediaGroup continueHomeShorts(String key) {
         int from = Integer.parseInt(key.substring(HOME_SHORTS_KEY.length()));
         List<MediaItem> more = homeShorts(from, HOME_SHORTS_PAGE);
-        // ponytail: the anonymous reel once the account's run out; it is endless, nothing else here is.
-        return !more.isEmpty() ? homeShortsPage(more, from) : getBrowseService2().getShorts2();
+        return !more.isEmpty() ? homeShortsPage(more, from) : seededReel(0);
+    }
+
+    // MEETUBE(issue #359): once the account's picks run out, the reel goes on from them. The seedless
+    // reel (anonymous: see above) is a random mix; the sequence after a given short stays on its topic
+    // for a page or so and then drifts, so each page starts again from another of the account's picks.
+    private static final String SEEDED_REEL_KEY = "meetube-seeded-reel:"; // + the next seed's turn
+
+    private static MediaGroup seededReel(int turn) {
+        List<MediaItem> picks;
+        synchronized (sHomeShortsLock) {
+            picks = new ArrayList<>(sHomeShorts.values());
+        }
+        if (picks.isEmpty()) {
+            return getBrowseService2().getShorts2();
+        }
+        MediaGroup reel = getBrowseService2().getShortsAfter(picks.get(turn % picks.size()).getVideoId());
+        List<MediaItem> items = reel != null && reel.getMediaItems() != null ? reel.getMediaItems() : new ArrayList<>();
+        return new ShortsMediaGroup(items, SEEDED_REEL_KEY + (turn + 1),
+                MediaGroupOptions.Companion.create(MediaGroup.TYPE_SHORTS, null));
     }
 
     @Override
@@ -946,6 +964,9 @@ class YouTubeContentService implements ContentService {
         String key = mediaGroup.getNextPageKey();
         if (key != null && key.startsWith(HOME_SHORTS_KEY)) {
             return continueHomeShorts(key);
+        }
+        if (key != null && key.startsWith(SEEDED_REEL_KEY)) {
+            return seededReel(Integer.parseInt(key.substring(SEEDED_REEL_KEY.length())));
         }
 
         if (mediaGroup instanceof SuggestionsGroup) {

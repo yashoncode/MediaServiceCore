@@ -163,6 +163,13 @@ internal object BrowseApiHelper {
         return PostDataHelper.createQuery(client.browseTemplate, details)
     }
 
+    /** MEETUBE(issue #359): the sequenceParams web builds when it opens /shorts/<videoId>: {1: videoId, 5: {3: 12}}. */
+    fun getReelSequenceParams(videoId: String): String {
+        val id = videoId.toByteArray()
+        val proto = byteArrayOf(0x0a, id.size.toByte()) + id + byteArrayOf(0x2a, 0x02, 0x18, 0x0c)
+        return android.util.Base64.encodeToString(proto, android.util.Base64.NO_WRAP)
+    }
+
     fun getReelContinuationQuery(client: AppClient, sequenceParams: String): String {
         val continuation = String.format(REEL_CONTINUATION, sequenceParams)
         return PostDataHelper.createQuery(client.browseTemplate, continuation)

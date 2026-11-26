@@ -228,6 +228,11 @@ internal open class BrowseService2 {
         return getShortsWeb()
     }
 
+    /** MEETUBE(issue #359): the reel sequence web plays after [videoId]; the shorts like it, not the seedless mix. */
+    fun getShortsAfter(videoId: String): MediaGroup? {
+        return continueShortsWeb(BrowseApiHelper.getReelSequenceParams(videoId))
+    }
+
     private fun getShortsWeb(auth: Boolean = false): MediaGroup? {
         val firstResult = mBrowseApi.getReelResult(BrowseApiHelper.getReelQuery())
 
